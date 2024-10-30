@@ -1,15 +1,17 @@
 import asyncio
-import websockets
+from websockets.asyncio.server import serve
+from http import HTTPStatus
 import os
 
 port = int(os.getenv("PORT", 5000))
 
 def health_check(connection, request):
+    print(f"Received request: {request.path}")
     if request.path == "/healthz":
         return connection.respond(HTTPStatus.OK, "OK")
 
 # Define the handler for new WebSocket connections
-async def echo(websocket, path):
+async def echo(websocket):
     print("New connection established")
     try:
         async for message in websocket:
@@ -20,9 +22,9 @@ async def echo(websocket, path):
 
 # Run the WebSocket server on localhost at port 8765
 async def main():
-    async with websockets.serve(echo, "0.0.0.0", port, process_request=health_check):
-        print(f"WebSocket server is running on ws://0.0.0.0:{port}")
-        await asyncio.Future()  # Run forever
+    async with serve(echo, "0.0.0.0", port, process_request=health_check):
+        print(f"WebSocket server is running on localhost:{port}")
+        await asyncio.get_running_loop().create_future()
 
 # Start the asyncio event loop
 if __name__ == "__main__":
