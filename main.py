@@ -1,5 +1,8 @@
 import asyncio
 import websockets
+import os
+
+port = int(os.getenv("PORT", 5000))
 
 # Define the handler for new WebSocket connections
 async def echo(websocket, path):
@@ -13,8 +16,8 @@ async def echo(websocket, path):
 
 # Run the WebSocket server on localhost at port 8765
 async def main():
-    async with websockets.serve(echo, "localhost", 5000):
-        print("WebSocket server is running on ws://localhost:8765")
+    async with websockets.serve(echo, "0.0.0.0", port):
+        print(f"WebSocket server is running on ws://0.0.0.0:{port}")
         await asyncio.Future()  # Run forever
 
 # Start the asyncio event loop
