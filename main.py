@@ -28,6 +28,7 @@ async def handler(websocket):
         room = Room.find_room(room_id) if room_id else Room(room_name, user)
         if not room: raise Exception("Room not found")
     except Exception as e:
+        user.disconnect()
         await websocket.close(reason=str(e))
         return
     if room_name: await user.send_message(json.dumps({

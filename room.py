@@ -57,7 +57,7 @@ class Room:
         if len(self.users) < 1:
             del ROOMS[self.id]
             return
-        self.broadcast_room({
+        if user in self.users: self.broadcast_room({
             'action': 'user_left',
             'data': {
                 'user_name': user.name,
