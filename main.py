@@ -1,31 +1,66 @@
+# https://websockets.readthedocs.io/en/stable/intro/tutorial2.html#solution
+
 import asyncio
+import json
+from urllib.parse import parse_qs, urlparse
 from websockets.asyncio.server import serve
 from http import HTTPStatus
 import os
 
+from action_handler import main_handler
+from room import Room
+from user import User
+
 port = int(os.getenv("PORT", 5000))
 
 def health_check(connection, request):
-    print(f"Received request: {request.path}")
     if request.path == "/healthz":
         return connection.respond(HTTPStatus.OK, "OK")
 
 # Define the handler for new WebSocket connections
-async def echo(websocket):
-    print("New connection established")
+async def handler(websocket):
+    parsed_url = urlparse(websocket.request.path)
+    query_params = parse_qs(parsed_url.query)
+    user_name = query_params.get("user_name", [None])[0]
+    room_name = query_params.get("room_name", [None])[0]
+    room_id = query_params.get("room_id", [None])[0]
     try:
-        async for message in websocket:
-            print(f"Received message: {message}")
-            await websocket.send(f"Echo: {message}")
-    except websockets.ConnectionClosedOK:
-        print("Connection closed")
+        user = User(user_name, websocket)
+        room = Room.find_room(room_id) if room_id else Room(room_name, user)
+        if not room: raise Exception("Room not found")
+    except Exception as e:
+        await websocket.close(reason=str(e))
+        return
+    if room_name: await user.send_message(json.dumps({
+        'action': 'start_room',
+        'data': {
+            'room_name': room.name,
+            'room_id': room.id,
+            'initial_player': {
+                'user_name': user.name,
+                'user_tag': user.tag
+            }
+        }
+    }))
+    elif room_id:
+        await user.send_message(json.dumps({
+            'action': 'room_users',
+            'data': {
+                'room_name': room.name,
+                'room_id': room.id,
+                'users': [{ 'user_name': user.name, 'user_tag': user.tag } for user in room.users]
+            }
+        }))
+        room.add_user(user)
+    async for json_message in websocket:
+        message = json.loads(json_message)
+        await main_handler(message, room, user)
+    user.disconnect()
 
-# Run the WebSocket server on localhost at port 8765
 async def main():
-    async with serve(echo, "0.0.0.0", port, process_request=health_check):
-        print(f"WebSocket server is running on localhost:{port}")
+    async with serve(handler, "0.0.0.0", port, process_request=health_check):
+        print(f"App running at 0.0.0.0:{port}")
         await asyncio.get_running_loop().create_future()
 
-# Start the asyncio event loop
 if __name__ == "__main__":
     asyncio.run(main())
