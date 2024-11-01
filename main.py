@@ -1,5 +1,3 @@
-# https://websockets.readthedocs.io/en/stable/intro/tutorial2.html#solution
-
 import asyncio
 import json
 from urllib.parse import parse_qs, urlparse
@@ -15,9 +13,10 @@ port = int(os.getenv("PORT", 5000))
 
 def health_check(connection, request):
     if request.path == "/healthz":
-        return connection.respond(HTTPStatus.OK, "OK")
+        response = connection.respond(HTTPStatus.OK, "OK")
+        response.headers['Access-Control-Allow-Origin'] = "*"
+        return response
 
-# Define the handler for new WebSocket connections
 async def handler(websocket):
     parsed_url = urlparse(websocket.request.path)
     query_params = parse_qs(parsed_url.query)
